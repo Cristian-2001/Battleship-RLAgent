@@ -6,8 +6,8 @@ from space import BlockingTupleSpace
 
 
 class BattleshipAgent:
-    def __init__(self, ts: BlockingTupleSpace, turn: bool):
-        self.ts = ts
+    def __init__(self, tuple_space: BlockingTupleSpace, turn: bool):
+        self.ts = tuple_space
         self.turn = turn
         self.grid_size = 10
         self.ships = [5, 4, 3, 3, 2]
@@ -126,3 +126,10 @@ class BattleshipAgent:
         plt.pause(0.1)
         self.fig.canvas.draw()
         plt.show()
+
+
+if __name__ == "__main__":
+    ts = BlockingTupleSpace()
+    agent = BattleshipAgent(ts, True)
+    agent.build_ships()
+    agent.loop()
