@@ -14,17 +14,17 @@ class BattleshipAgent:
 
         # 0: unknown, -1: hit, -2: miss, 2-5: ship
         self.player_grid = np.zeros((self.grid_size, self.grid_size))
-        self.player_grid += -2                                          # Mark as empty
+        self.player_grid += -2  # Mark as empty
         self.opponent_grid = np.zeros((self.grid_size, self.grid_size))
 
         self.ships_remaining = self.ships.copy()
         self.id = 0
 
-        set1_colors = ["#999999", "#377EB8", "#E41A1C"]                 # Colors for the grids: grey, blue, red (0, -2, -1)
+        set1_colors = ["#999999", "#377EB8", "#E41A1C"]  # Colors for the grids: grey, blue, red (0, -2, -1)
         custom_cmap = mcolors.ListedColormap(set1_colors)
         self.fig, (self.ax1, self.ax2) = plt.subplots(self.grid_size, self.grid_size, figsize=(10, 10))
-        self.im1 = self.ax1.imshow(self.player_grid, cmap=custom_cmap)       # Player grid
-        self.im2 = self.ax2.imshow(self.opponent_grid, cmap=custom_cmap)     # Opponent grid
+        self.im1 = self.ax1.imshow(self.player_grid, cmap=custom_cmap)  # Player grid
+        self.im2 = self.ax2.imshow(self.opponent_grid, cmap=custom_cmap)  # Opponent grid
 
         self.ax1.set_title("Player grid")
         self.ax2.set_title("Opponent grid")
@@ -61,6 +61,8 @@ class BattleshipAgent:
             else:
                 self.ts.add(("Response", self.id, request[2], request[3], False))
 
+            # TODO: aggiornare le griglie
+            # TODO: mettere a posto il check del game over
             if not self.ships_remaining:
                 self.ts.add(("Game over", self.id, True))
                 reward = -10
@@ -84,7 +86,6 @@ class BattleshipAgent:
     def loop(self):
         while True:
             self.step(None)
-
 
     def build_ships(self):
         for ship in self.ships:
