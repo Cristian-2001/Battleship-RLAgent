@@ -172,73 +172,74 @@ def show_img(grid):
     cv2.imshow("image", np.array(img))
 
 
-if start_q_table is None:
-    q_table = {}
-else:
-    with open(start_q_table, "rb") as f:
-        q_table = pickle.load(f)
-
-episode_rewards = []
-for episode in range(HM_EPISODES):
-    player = Battleship()
-    show_img(player.opponent_grid)
-    # cv2.waitKey(50000)
-
-    if episode % SHOW_EVERY == 0:
-        print(f"on #{episode}, epsilon is {epsilon}")
-        print(f"{SHOW_EVERY} ep mean: {np.mean(episode_rewards[-SHOW_EVERY:])}")
-        show = True
+if __name__ == "__main__":
+    if start_q_table is None:
+        q_table = {}
     else:
-        show = False
+        with open(start_q_table, "rb") as f:
+            q_table = pickle.load(f)
 
-    episode_reward = 0
-    for i in range(100):
-        if i > 16:
-            TURN_PENALTY = 1
-        if np.random.random() > epsilon:
-            q_values = get_q_values(player.player_grid)
-            action = np.argmax(q_values)
-            x, y = np.unravel_index(action, q_values.shape)
+    episode_rewards = []
+    for episode in range(HM_EPISODES):
+        player = Battleship()
+        show_img(player.opponent_grid)
+        # cv2.waitKey(50000)
+
+        if episode % SHOW_EVERY == 0:
+            print(f"on #{episode}, epsilon is {epsilon}")
+            print(f"{SHOW_EVERY} ep mean: {np.mean(episode_rewards[-SHOW_EVERY:])}")
+            show = True
         else:
-            x = np.random.randint(0, SIZE)
-            y = np.random.randint(0, SIZE)
+            show = False
 
-        current_q = get_q_values(player.player_grid)[x, y]
-        reward = player.action(x, y) - TURN_PENALTY
-        # print(reward)
-
-        max_future_q = np.max(get_q_values(player.player_grid))
-
-        if reward == WIN_REWARD - TURN_PENALTY:
-            print(f"WIN on episode {episode}")
-            new_q = WIN_REWARD - TURN_PENALTY
-        else:
-            new_q = (1 - LEARNING_RATE) * current_q + LEARNING_RATE * (reward + DISCOUNT * max_future_q)
-        q_table[state_to_key(player.player_grid)][x, y] = new_q
-
-        if show:
-            show_img(player.player_grid)
-            if reward == WIN_REWARD - TURN_PENALTY:
-                if cv2.waitKey(500) & 0xFF == ord("q"):
-                    break
+        episode_reward = 0
+        for i in range(100):
+            if i > 16:
+                TURN_PENALTY = 1
+            if np.random.random() > epsilon:
+                q_values = get_q_values(player.player_grid)
+                action = np.argmax(q_values)
+                x, y = np.unravel_index(action, q_values.shape)
             else:
-                if cv2.waitKey(1) & 0xFF == ord("q"):
-                    break
+                x = np.random.randint(0, SIZE)
+                y = np.random.randint(0, SIZE)
 
-        episode_reward += reward
-        if reward == WIN_REWARD - TURN_PENALTY:
-            print("WIN")
-            break
+            current_q = get_q_values(player.player_grid)[x, y]
+            reward = player.action(x, y) - TURN_PENALTY
+            # print(reward)
 
-    episode_rewards.append(episode_reward)
-    epsilon *= EPSILON_DECAY
+            max_future_q = np.max(get_q_values(player.player_grid))
 
-moving_avg = np.convolve(episode_rewards, np.ones((SHOW_EVERY,)) / SHOW_EVERY, mode='valid')
+            if reward == WIN_REWARD - TURN_PENALTY:
+                print(f"WIN on episode {episode}")
+                new_q = WIN_REWARD - TURN_PENALTY
+            else:
+                new_q = (1 - LEARNING_RATE) * current_q + LEARNING_RATE * (reward + DISCOUNT * max_future_q)
+            q_table[state_to_key(player.player_grid)][x, y] = new_q
 
-plt.plot([i for i in range(len(moving_avg))], moving_avg)
-plt.ylabel(f"Reward {SHOW_EVERY}ma")
-plt.xlabel("episode #")
-plt.show()
+            if show:
+                show_img(player.player_grid)
+                if reward == WIN_REWARD - TURN_PENALTY:
+                    if cv2.waitKey(500) & 0xFF == ord("q"):
+                        break
+                else:
+                    if cv2.waitKey(1) & 0xFF == ord("q"):
+                        break
 
-with open(f"qtable-{int(time.time())}.pickle", "wb") as f:
-    pickle.dump(q_table, f)
+            episode_reward += reward
+            if reward == WIN_REWARD - TURN_PENALTY:
+                print("WIN")
+                break
+
+        episode_rewards.append(episode_reward)
+        epsilon *= EPSILON_DECAY
+
+    moving_avg = np.convolve(episode_rewards, np.ones((SHOW_EVERY,)) / SHOW_EVERY, mode='valid')
+
+    plt.plot([i for i in range(len(moving_avg))], moving_avg)
+    plt.ylabel(f"Reward {SHOW_EVERY}ma")
+    plt.xlabel("episode #")
+    plt.show()
+
+    with open(f"qtable-{int(time.time())}.pickle", "wb") as f:
+        pickle.dump(q_table, f)
