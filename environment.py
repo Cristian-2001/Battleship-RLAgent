@@ -10,10 +10,10 @@ import time
 
 SIZE = 4  # grid dimension
 HM_EPISODES = 25000
-TURN_PENALTY = 0.5
+TURN_PENALTY = 1.5
 HIT_REWARD = 10
 MISS_PENALTY = 2
-ALREADY_HIT_PENALTY = 15
+ALREADY_HIT_PENALTY = 30
 WIN_REWARD = 100
 epsilon = 0.5
 EPSILON_DECAY = 0.99999
@@ -21,7 +21,9 @@ SHOW_EVERY = 1000
 
 # start_q_table = 'qtable-1738664528.pickle'    # None or Filename (qtable-1738664833.pickle)
 # start_q_table = 'qtable-1738665202.pickle'    # TURN_PENALTY = 0.5 *i
-# start_q_table = 'qtable-1738665606.pickle'      # TURN_PENALTY = 0.5, 1 after 16 turns
+# start_q_table = 'qtable-1738665606.pickle'    # TURN_PENALTY = 0.5, 1 after 16 turns
+# start_q_table = 'qtable-1738925166.pickle'    # Higher penalties
+# start_q_table = 'qtable-1738925776.pickle'      # New check_ship
 start_q_table = None
 
 LEARNING_RATE = 0.1
@@ -95,13 +97,39 @@ class Battleship:
             if x + ship.size > SIZE:
                 return False
             for i in range(ship.size):
+                # Check if it doesn't overlap with other ships
                 if self.opponent_grid[x + i, y] != -1:
+                    return False
+
+                # Check if it doesn't touch other ships laterally
+                if y > 0 and self.opponent_grid[x + i, y - 1] != -1:
+                    return False
+                if y < SIZE - 1 and self.opponent_grid[x + i, y + 1] != -1:
+                    return False
+
+                # Check if it doesn't touch other ships at the ends
+                if i == 0 and x > 0 and self.opponent_grid[x - 1, y] != -1:
+                    return False
+                if i == ship.size - 1 and x + i < SIZE - 1 and self.opponent_grid[x + i + 1, y] != -1:
                     return False
         elif orientation == "horizontal":
             if y + ship.size > SIZE:
                 return False
             for i in range(ship.size):
+                # Check if it doesn't overlap with other ships
                 if self.opponent_grid[x, y + i] != -1:
+                    return False
+
+                # Check if it doesn't touch other ships laterally
+                if x > 0 and self.opponent_grid[x - 1, y + i] != -1:
+                    return False
+                if x < SIZE - 1 and self.opponent_grid[x + 1, y + i] != -1:
+                    return False
+
+                # Check if it doesn't touch other ships at the ends
+                if i == 0 and y > 0 and self.opponent_grid[x, y - 1] != -1:
+                    return False
+                if i == ship.size - 1 and y + i < SIZE - 1 and self.opponent_grid[x, y + i + 1] != -1:
                     return False
         return True
 

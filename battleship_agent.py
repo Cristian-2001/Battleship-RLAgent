@@ -5,13 +5,13 @@ import pickle
 import threading
 import time
 import matplotlib.pyplot as plt
-from fontTools.unicodedata import block
 from matplotlib.colors import ListedColormap, BoundaryNorm
+from matplotlib.animation import FuncAnimation
 
 from space import BlockingTupleSpace
 from environment import Ship, SIZE, SHIP_N, SEA_N, UNKNOWN_N, d
 
-q_table_name = 'qtable-1738664833.pickle'
+q_table_name = 'qtables/qtable-1738925776.pickle'
 epsilon = 0.1
 
 
@@ -54,17 +54,44 @@ class BattleshipAgent:
                     break
 
     def check_ship(self, x, y, ship, orientation):
+        # print(f"Checking ship {ship.size} at {x}, {y} with orientation {orientation}")
         if orientation == "vertical":
             if x + ship.size > SIZE:
                 return False
             for i in range(ship.size):
+                # Check if it doesn't overlap with other ships
                 if self.player_grid[x + i, y] != -1:
+                    return False
+
+                # Check if it doesn't touch other ships laterally
+                if y > 0 and self.player_grid[x + i, y - 1] != -1:
+                    return False
+                if y < SIZE - 1 and self.player_grid[x + i, y + 1] != -1:
+                    return False
+
+                # Check if it doesn't touch other ships at the ends
+                if i == 0 and x > 0 and self.player_grid[x - 1, y] != -1:
+                    return False
+                if i == ship.size - 1 and x + i < SIZE - 1 and self.player_grid[x + i + 1, y] != -1:
                     return False
         elif orientation == "horizontal":
             if y + ship.size > SIZE:
                 return False
             for i in range(ship.size):
+                # Check if it doesn't overlap with other ships
                 if self.player_grid[x, y + i] != -1:
+                    return False
+
+                # Check if it doesn't touch other ships laterally
+                if x > 0 and self.player_grid[x - 1, y + i] != -1:
+                    return False
+                if x < SIZE - 1 and self.player_grid[x + 1, y + i] != -1:
+                    return False
+
+                # Check if it doesn't touch other ships at the ends
+                if i == 0 and y > 0 and self.player_grid[x, y - 1] != -1:
+                    return False
+                if i == ship.size - 1 and y + i < SIZE - 1 and self.player_grid[x, y + i + 1] != -1:
                     return False
         return True
 
@@ -96,7 +123,7 @@ class BattleshipAgent:
 
             if self.check_game_over():
                 self.done = True
-                print(f"Game over, {self.name} won")
+                print(f"Game over, {self.name} won. {self.id}")
 
             self.change_turn()
         else:
@@ -112,7 +139,7 @@ class BattleshipAgent:
             if self.sunken_ships == len(self.ships):
                 self.ts.add(("Game over", self.id, True))
                 self.done = True
-                print(f"Game over, {self.name} lost")
+                print(f"Game over, {self.name} lost. {self.id}")
             else:
                 self.ts.add(("Game over", self.id, False))
             # Change turn
@@ -217,22 +244,23 @@ if __name__ == "__main__":
         (agent2.opponent_grid, 'Player 2 opponent grid', axs[1, 1]),
     ]
 
+    imgs = []
     for matrix, text, ax in config_plot:
-        ax.pcolor(matrix, edgecolors='k', linewidths=2, cmap=custom_cmap, norm=norm)
+        im = ax.plot(matrix)
         ax.set_title(text)
+        print(type(im))
+        imgs.append(im)
 
-    plt.show(block=False)
+    def update(frame, imgs):
+        for im in imgs:
+            im.set_data(agent1.player_grid)
+        return imgs
 
-    while not agent1.done and not agent2.done:
-        ts.remove(("Update_grids", None))
-        print("ECCOMI")
-        # plt.clf()
+    # while not agent1.done and not agent2.done:
+    #     ts.remove(("Update_grids", None))
+    #     print("ECCOMI")
 
-        for matrix, text, ax in config_plot:
-            ax.pcolor(matrix, edgecolors='k', linewidths=2, cmap=custom_cmap, norm=norm)
-            ax.set_title(text)
+    anim = FuncAnimation(fig, update, fargs=(imgs,), frames=1, repeat=False)
+    plt.show()
 
-        # fig.canvas.draw()
-        plt.show(block=False)
-        # fig.canvas.flush_events()
-        # time.sleep(0.1)
+
