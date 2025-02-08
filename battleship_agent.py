@@ -212,7 +212,35 @@ class BattleshipAgent:
         cv2.imshow(self.name + " " + text, np.array(img))
 
 
+def plot_grids(n_turn, agent1, agent2):
+    # Set up the plot
+    fig, axs = plt.subplots(2, 2, figsize=(8, 8))
+    custom_cmap = ListedColormap(['blue', 'blue', 'grey', 'red', 'red', 'red'])
+
+    # Define boundaries: ensures correct color assignment
+    boundaries = [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5]
+    norm = BoundaryNorm(boundaries, custom_cmap.N)
+
+    config_plot = [
+        (agent1.player_grid, 'Player 1 self grid', axs[0, 0]),
+        (agent1.opponent_grid, 'Player 1 opponent grid', axs[1, 0]),
+        (agent2.player_grid, 'Player 2 self grid', axs[0, 1]),
+        (agent2.opponent_grid, 'Player 2 opponent grid', axs[1, 1]),
+    ]
+
+    # Plot matrices
+    for matrix, title, ax in config_plot:
+        im = ax.imshow(matrix, cmap=custom_cmap, norm=norm)
+        ax.set_title(title)
+        ax.axis("off")  # Hide axis for better visualization
+
+    # Save the figure
+    fig.suptitle(f"Turn {n_turn}")
+    plt.show()
+
+
 if __name__ == "__main__":
+    n_turn = 1
     ts = BlockingTupleSpace()
     agent1 = BattleshipAgent(ts, True, "Player 1")
     agent2 = BattleshipAgent(ts, False, "Player 2")
@@ -229,38 +257,11 @@ if __name__ == "__main__":
     threading.Thread(target=player1, daemon=True).start()
     threading.Thread(target=player2, daemon=True).start()
 
-    # Set up the plot
-    fig, axs = plt.subplots(2, 2, figsize=(8, 8))
-    custom_cmap = ListedColormap (['blue', 'blue', 'grey', 'red', 'red', 'red'])
+    plot_grids(n_turn, agent1, agent2)
 
-    # Define boundaries: ensures correct color assignment
-    boundaries = [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5]
-    norm = BoundaryNorm(boundaries, custom_cmap.N)
+    while not agent1.done and not agent2.done:
+        ts.remove(("Update_grids", None))
+        print("ECCOMI")
+        n_turn += 1
 
-    config_plot = [
-        (agent1.player_grid, 'Player 1 self grid', axs[0, 0]),
-        (agent1.opponent_grid, 'Player 1 opponent grid', axs[1, 0]),
-        (agent2.player_grid, 'Player 2 self grid', axs[0, 1]),
-        (agent2.opponent_grid, 'Player 2 opponent grid', axs[1, 1]),
-    ]
-
-    imgs = []
-    for matrix, text, ax in config_plot:
-        im = ax.plot(matrix)
-        ax.set_title(text)
-        print(type(im))
-        imgs.append(im)
-
-    def update(frame, imgs):
-        for im in imgs:
-            im.set_data(agent1.player_grid)
-        return imgs
-
-    # while not agent1.done and not agent2.done:
-    #     ts.remove(("Update_grids", None))
-    #     print("ECCOMI")
-
-    anim = FuncAnimation(fig, update, fargs=(imgs,), frames=1, repeat=False)
-    plt.show()
-
-
+        plot_grids(n_turn, agent1, agent2)
