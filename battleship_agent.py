@@ -11,7 +11,7 @@ import sys
 from space import BlockingTupleSpace
 from environment import Ship, SIZE, SHIP_N, SEA_N, UNKNOWN_N, d
 
-q_table_name = 'qtables/qtable-1739118229.pickle'
+q_table_name = 'qtables/qtable-1739121441.pickle'
 epsilon = 0.1
 
 
@@ -118,7 +118,7 @@ class BattleshipAgent:
         if self.turn:
             x, y = self.choose_action()
             value = int(self.ask(x, y))
-            print(self.id, x, y, value)
+            # print(self.id, x, y, value)
             if value == -1:  # miss
                 print("Miss")
                 self.update_opponent_grid(x, y, 'miss')
@@ -141,17 +141,22 @@ class BattleshipAgent:
             request = self.ts.remove(("Request", self.counter, None, None))
             x, y = request[2], request[3]
             # Respond to the request
-            self.ts.add(("Response", self.counter, x, y, self.player_grid[x, y]))
-            ship = self.ships[self.player_grid[x, y] - 1]
-            if ship.hit(x, y, True):
-                self.sunken_ships += 1
-                print(f"Agent {self.id}: Affondata nave {ship.x1} {ship.y1} {ship.x2} {ship.y2} {ship.orientation}")
-            # Check if the game is over and publish the result
-            if self.sunken_ships == len(self.ships):
-                self.ts.add(("Game over", self.counter, True))
-                self.done = True
-                print(f"Game over, {self.id} lost. {self.counter}")
-                print(self.opponent_grid)
+            value = self.player_grid[x, y]
+            self.ts.add(("Response", self.counter, x, y, value))
+            ship = self.ships[value - 1]
+            if value > 0:   # A ship was hit
+                if ship.hit(x, y, True):
+                    self.sunken_ships += 1
+                    print(f"Agent {self.id}: Affondata nave {ship.x1} {ship.y1} {ship.x2} {ship.y2} {ship.orientation}")
+                print(f"Agent {self.id}: [{ship.hits}]")
+                # Check if the game is over and publish the result
+                if self.sunken_ships == len(self.ships):
+                    self.ts.add(("Game over", self.counter, True))
+                    self.done = True
+                    print(f"Game over, {self.id} lost. {self.counter}")
+                    print(self.opponent_grid)
+                else:
+                    self.ts.add(("Game over", self.counter, False))
             else:
                 self.ts.add(("Game over", self.counter, False))
             # Change turn
@@ -171,6 +176,10 @@ class BattleshipAgent:
         if np.random.random() > epsilon:
             q_values = self.get_q_values(self.get_state())
             x, y = np.unravel_index(np.argmax(q_values, axis=None), q_values.shape)
+            if self.opponent_grid[x, y] != 0:
+                print("Already hit or missed")
+                x = np.random.randint(0, SIZE)
+                y = np.random.randint(0, SIZE)
         else:
             print("Random")
             x = np.random.randint(0, SIZE)

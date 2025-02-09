@@ -13,8 +13,8 @@ HM_EPISODES = 25000
 TURN_PENALTY = 1.5
 HIT_REWARD = 10
 MISS_PENALTY = 2
-ALREADY_HIT_PENALTY = 60
-WIN_REWARD = 100
+ALREADY_HIT_PENALTY = 100
+WIN_REWARD = 1000
 epsilon = 0.5
 EPSILON_DECAY = 0.99999
 SHOW_EVERY = 1000
@@ -26,6 +26,8 @@ SHOW_EVERY = 1000
 # start_q_table = 'qtable-1738925776.pickle'    # New check_ship
 # start_q_table = 'qtable-1739108506.pickle'    # Higher ALREADY_HIT_PENALTY, different miss representation
 # start_q_table = 'qtable-1739118229.pickle'    # Higher ALREADY_HIT_PENALTY, new Ship.hit() method
+# start_q_table = 'qtable-1739120706.pickle'    # Higher ALREADY_HIT_PENALTY
+# start_q_table = 'qtable-1739121441.pickle'    # More rounds
 start_q_table = None
 
 LEARNING_RATE = 0.1
@@ -62,8 +64,8 @@ class Ship:
         if (x, y) not in self.hits:
             self.hits.append((x, y))
             if show:
-                print(f"Ship hit! {len(self.hits)}/{self.size}")
-                print(self.hits)
+                print(f"Ship hit at ({x}, {y})! {len(self.hits)}/{self.size}")
+                # print(self.hits)
         return len(self.hits) == self.size
 
 
@@ -231,7 +233,7 @@ if __name__ == "__main__":
             show = False
 
         episode_reward = 0
-        for i in range(100):
+        for i in range(1000):
             if i > 16:
                 TURN_PENALTY = 1
             if np.random.random() > epsilon:
