@@ -13,7 +13,7 @@ HM_EPISODES = 25000
 TURN_PENALTY = 1.5
 HIT_REWARD = 10
 MISS_PENALTY = 2
-ALREADY_HIT_PENALTY = 30
+ALREADY_HIT_PENALTY = 60
 WIN_REWARD = 100
 epsilon = 0.5
 EPSILON_DECAY = 0.99999
@@ -23,7 +23,9 @@ SHOW_EVERY = 1000
 # start_q_table = 'qtable-1738665202.pickle'    # TURN_PENALTY = 0.5 *i
 # start_q_table = 'qtable-1738665606.pickle'    # TURN_PENALTY = 0.5, 1 after 16 turns
 # start_q_table = 'qtable-1738925166.pickle'    # Higher penalties
-# start_q_table = 'qtable-1738925776.pickle'      # New check_ship
+# start_q_table = 'qtable-1738925776.pickle'    # New check_ship
+# start_q_table = 'qtable-1739108506.pickle'    # Higher ALREADY_HIT_PENALTY, different miss representation
+# start_q_table = 'qtable-1739118229.pickle'    # Higher ALREADY_HIT_PENALTY, new Ship.hit() method
 start_q_table = None
 
 LEARNING_RATE = 0.1
@@ -41,30 +43,37 @@ d = {1: (0, 0, 255),
 class Ship:
     def __init__(self, size):
         self.size = size
-        self.hits = 0
+        self.hits = []
         self.x1 = self.x2 = self.y1 = self.y2 = 0
+        self.orientation = None
 
     def place(self, x1, y1, orientation):
         self.x1 = x1
         self.y1 = y1
+        self.orientation = orientation
         if orientation == "horizontal":
-            self.x2 = x1 + self.size - 1
-            self.y2 = y1
-        else:
             self.x2 = x1
             self.y2 = y1 + self.size - 1
+        else:
+            self.x2 = x1 + self.size - 1
+            self.y2 = y1
 
-    def hit(self):
-        self.hits += 1
-        return self.hits == self.size
+    def hit(self, x, y, show=False):
+        if (x, y) not in self.hits:
+            self.hits.append((x, y))
+            if show:
+                print(f"Ship hit! {len(self.hits)}/{self.size}")
+                print(self.hits)
+        return len(self.hits) == self.size
 
 
 class Battleship:
     '''
     In this case:
     - opponent_grid is the known grid of the player with the ships, the agent will try to hit the ships
+    -1 means sea, 1, 2, 3, ... are the ships
     - player_grid is the unknown grid: the agent will update it with the hits and misses
-    0 means unknown, -1 means sea, -2 is a hit, 1, 2, 3, ... are the ships
+    0 means unknown, -3 means sea, -2 is a hit
     '''
 
     def __init__(self):
@@ -148,6 +157,7 @@ class Battleship:
 
     def action(self, x, y):
         if self.player_grid[x, y] != 0:  # already hit
+            # print("Already hit")
             return -ALREADY_HIT_PENALTY
 
         value = int(self.ask(x, y))
@@ -157,7 +167,7 @@ class Battleship:
         elif value > 0:  # hit
             self.update_grid(x, y, HIT_REWARD)
             ship = self.ships[value - 1]
-            if ship.hit():
+            if ship.hit(x, y):
                 self.sunken_ships += 1
                 if self.sunken_ships == len(self.ships):
                     return WIN_REWARD
@@ -170,7 +180,7 @@ class Battleship:
         if reward == HIT_REWARD:
             self.player_grid[x, y] = -2
         else:
-            self.player_grid[x, y] = -1
+            self.player_grid[x, y] = -3
 
 
 def state_to_key(state):
@@ -191,7 +201,7 @@ def show_img(grid):
         for k in range(SIZE):
             if grid[j, k] == 0:  # unknown
                 env[j, k] = d[UNKNOWN_N]
-            elif grid[j, k] == -1:  # sea
+            elif grid[j, k] == -1 or grid[j, k] == -3:  # sea
                 env[j, k] = d[SEA_N]
             else:  # ship
                 env[j, k] = d[SHIP_N]
