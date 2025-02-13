@@ -9,15 +9,21 @@ from matplotlib import style
 import time
 
 SIZE = 4  # grid dimension
-HM_EPISODES = 25000
-TURN_PENALTY = 1.5
-HIT_REWARD = 10
-MISS_PENALTY = 2
-ALREADY_HIT_PENALTY = 100
-WIN_REWARD = 1000
-epsilon = 0.5
-EPSILON_DECAY = 0.99999
-SHOW_EVERY = 1000
+HM_EPISODES = 40000  # number of episodes
+TURN_PENALTY = 50  # penalty for each turn
+HIT_REWARD = 100  # reward for a hit
+CONSECUTIVEHIT_REWARD = 50  # reward for consecutive hits
+CONSECUTIVEMISS_PENALTY = 20  # penalty for misses after a hit
+SUNK_REWARD = 30  # reward for sinking a ship
+MISS_PENALTY = 25  # penalty for a miss
+ALREADY_HIT_PENALTY = 200  # penalty for hitting a cell already hit
+WIN_REWARD = 1030  # reward for winning
+ZEROCELLS_REWARD = 20  # reward for each remaining zero cell in the grid
+epsilon = 0.5  # exploration rate
+EPSILON_DECAY = 0.99999  # exploration rate decay
+SHOW_EVERY = 1000  # how often to show the game
+LEARNING_RATE = 0.1  # learning rate
+DISCOUNT = 0.9  # discount rate
 
 # start_q_table = 'qtable-1738664528.pickle'    # None or Filename (qtable-1738664833.pickle)
 # start_q_table = 'qtable-1738665202.pickle'    # TURN_PENALTY = 0.5 *i
@@ -28,10 +34,20 @@ SHOW_EVERY = 1000
 # start_q_table = 'qtable-1739118229.pickle'    # Higher ALREADY_HIT_PENALTY, new Ship.hit() method
 # start_q_table = 'qtable-1739120706.pickle'    # Higher ALREADY_HIT_PENALTY
 # start_q_table = 'qtable-1739121441.pickle'    # More rounds
+# start_q_table = 'qtable-1739129671.pickle'    # 1000 rounds, no TURN_PENALTY when win
+# start_q_table = 'qtable-1739207286.pickle'    # More epochs (40k vs 25k), higher ALREADY_HIT_PENALTY, introduced SUNK_REWARD
+# start_q_table = 'qtable-1739374459.pickle'    # Last try
+# start_q_table = 'qtable-1739390516.pickle'    # Higher TURN_PENALTY, WIN_REWARD and MISS_PENALTY
+# start_q_table = 'qtable-1739390906.pickle'    # Higher TURN_PENALTY, WIN_REWARD and MISS_PENALTY
+# start_q_table = 'qtable-1739436541.pickle'    # Introduced ZEROCELLS_REWARD
+# start_q_table = 'qtable-1739438178.pickle'    # Introduced CONSECUTIVEHIT_REWARD
+# start_q_table = 'qtable-1739444524.pickle'    # Introduced CONSECUTIVEMISS_PENALTY
+# start_q_table = 'qtable-1739444650.pickle'    # Retrained on the previous qtable
+# start_q_table = 'qtable-1739445130.pickle'    # Higher CONSECUTIVEMISS_PENALTY (20 vs 15)
+# start_q_table = 'qtable-1739445255.pickle'    # Retrained on the previous qtable
+# start_q_table = 'qtable-1739445374.pickle'    # Retrained on the previous qtable
+# start_q_table = 'qtable-1739446745.pickle'    # Retrained on the previous qtable
 start_q_table = None
-
-LEARNING_RATE = 0.1
-DISCOUNT = 0.9
 
 SHIP_N = 1
 SEA_N = 2
@@ -43,13 +59,48 @@ d = {1: (0, 0, 255),
 
 
 class Ship:
+    """
+    A class to represent a ship in the Battleship game.
+
+    Attributes:
+    -----------
+    size : int
+        The size of the ship.
+    hits : list
+        A list to keep track of the coordinates where the ship has been hit.
+    x1, x2, y1, y2 : int
+        The coordinates of the ship's position on the grid.
+    orientation : str
+        The orientation of the ship, either 'horizontal' or 'vertical'.
+    """
+
     def __init__(self, size):
+        """
+        Constructs all the necessary attributes for the ship object.
+
+        Parameters:
+        -----------
+        size : int
+            The size of the ship.
+        """
         self.size = size
         self.hits = []
         self.x1 = self.x2 = self.y1 = self.y2 = 0
         self.orientation = None
 
     def place(self, x1, y1, orientation):
+        """
+        Saves the position and orientation of the ship on the grid.
+
+        Parameters:
+        -----------
+        x1 : int
+            The starting x-coordinate of the ship.
+        y1 : int
+            The starting y-coordinate of the ship.
+        orientation : str
+            The orientation of the ship, either 'horizontal' or 'vertical'.
+        """
         self.x1 = x1
         self.y1 = y1
         self.orientation = orientation
@@ -61,6 +112,23 @@ class Ship:
             self.y2 = y1
 
     def hit(self, x, y, show=False):
+        """
+        Registers a hit on the ship at the given coordinates.
+
+        Parameters:
+        -----------
+        x : int
+            The x-coordinate of the hit.
+        y : int
+            The y-coordinate of the hit.
+        show : bool, optional
+            If True, prints a message indicating the hit (default is False).
+
+        Returns:
+        --------
+        bool
+            True if the ship is completely hit (sunk), False otherwise.
+        """
         if (x, y) not in self.hits:
             self.hits.append((x, y))
             if show:
@@ -70,29 +138,57 @@ class Ship:
 
 
 class Battleship:
-    '''
-    In this case:
-    - opponent_grid is the known grid of the player with the ships, the agent will try to hit the ships
-    -1 means sea, 1, 2, 3, ... are the ships
-    - player_grid is the unknown grid: the agent will update it with the hits and misses
-    0 means unknown, -3 means sea, -2 is a hit
-    '''
+    """
+    A class to represent the Battleship game environment.
+
+    Attributes:
+    -----------
+    ships : list
+        A list of Ship objects representing the ships in the game.
+    opponent_grid : numpy.ndarray
+        A 2D array representing the opponent's grid with ship positions.
+        -1 means sea, 1, 2, 3, ... are the ships
+    player_grid : numpy.ndarray
+        A 2D array representing the player's grid with hits and misses.
+        0 means unknown, -3 means sea, -2 is a hit
+    sunken_ships : list
+        A list to keep track of the indices of sunken ships.
+    """
 
     def __init__(self):
+        """
+        Constructs all the necessary attributes for the Battleship object.
+        """
         # print("Battleship")
         self.ships = [Ship(3), Ship(2)]
         self.opponent_grid = self.create_grid(opponent=True)
         self.build_ships()
         self.player_grid = self.create_grid(opponent=False)
-        self.sunken_ships = 0
+        self.sunken_ships = []
 
     def create_grid(self, opponent: bool):
+        """
+        Creates a grid for the game.
+
+        Parameters:
+        -----------
+        opponent : bool
+            If True, creates the opponent's grid. Otherwise, creates the player's grid.
+
+        Returns:
+        --------
+        numpy.ndarray
+            A 2D array representing the grid.
+        """
         if opponent:
             return np.full((SIZE, SIZE), -1)
         else:
             return np.zeros((SIZE, SIZE))
 
     def build_ships(self):
+        """
+        Randomly places ships on the opponent's grid.
+        """
         for ship in self.ships:
             while True:
                 x, y = np.random.randint(0, SIZE, 2)
@@ -103,6 +199,25 @@ class Battleship:
                     break
 
     def check_ship(self, x, y, ship, orientation):
+        """
+        Checks if a ship can be placed at the given coordinates with the given orientation.
+
+        Parameters:
+        -----------
+        x : int
+           The x-coordinate of the starting position.
+        y : int
+           The y-coordinate of the starting position.
+        ship : Ship
+           The ship object to be placed.
+        orientation : str
+           The orientation of the ship, either 'horizontal' or 'vertical'.
+
+        Returns:
+        --------
+        bool
+           True if the ship can be placed, False otherwise.
+        """
         # print(f"Checking ship {ship.size} at {x}, {y} with orientation {orientation}")
         if orientation == "vertical":
             if x + ship.size > SIZE:
@@ -145,7 +260,25 @@ class Battleship:
         return True
 
     def place_ship(self, x, y, ship, orientation):
-        # print(f"Placing ship {ship.size} at {x}, {y} with orientation {orientation}")
+        """
+        Places a ship on the opponent's grid at the given coordinates with the given orientation.
+
+        Parameters:
+        -----------
+        x : int
+            The x-coordinate of the starting position.
+        y : int
+            The y-coordinate of the starting position.
+        ship : Ship
+            The ship object to be placed.
+        orientation : str
+            The orientation of the ship, either 'horizontal' or 'vertical'.
+
+        Returns:
+        --------
+        bool
+            True if the ship is successfully placed.
+        """
         # In the grid there will be the index of the ship + 1 (because 0 is unknown)
         if orientation == "vertical":
             for i in range(ship.size):
@@ -157,23 +290,53 @@ class Battleship:
             ship.place(x, y, "horizontal")
         return True
 
-    def action(self, x, y):
+    def action(self, x, y, last_action):
+        """
+        Performs an action on the player's grid at the given coordinates.
+
+        Parameters:
+        -----------
+        x : int
+            The x-coordinate of the action.
+        y : int
+            The y-coordinate of the action.
+        last_action : bool
+            False if the last action was a miss, True if it was a hit.
+
+        Returns:
+        --------
+        int
+            The reward for the action.
+        bool
+            True if the action is a hit, False otherwise.
+        """
+        rew = 0
         if self.player_grid[x, y] != 0:  # already hit
             # print("Already hit")
-            return -ALREADY_HIT_PENALTY
+            return -ALREADY_HIT_PENALTY, False
 
         value = int(self.ask(x, y))
         if value == -1:  # miss
             self.update_grid(x, y, -MISS_PENALTY)
-            return -MISS_PENALTY
+            if last_action:
+                rew = -CONSECUTIVEMISS_PENALTY
+            else:
+                rew = 0
+            return -MISS_PENALTY + rew, False
         elif value > 0:  # hit
             self.update_grid(x, y, HIT_REWARD)
             ship = self.ships[value - 1]
             if ship.hit(x, y):
-                self.sunken_ships += 1
-                if self.sunken_ships == len(self.ships):
-                    return WIN_REWARD
-            return HIT_REWARD
+                if self.ships.index(ship) not in self.sunken_ships:
+                    self.sunken_ships.append(self.ships.index(ship))
+                    rew = SUNK_REWARD
+                else:
+                    rew = 0
+                if len(self.sunken_ships) == len(self.ships):
+                    return WIN_REWARD, True
+                if last_action:
+                    rew += CONSECUTIVEHIT_REWARD
+            return HIT_REWARD + rew, True
 
     def ask(self, x, y):
         return self.opponent_grid[x, y]
@@ -190,6 +353,20 @@ def state_to_key(state):
 
 
 def get_q_values(state):
+    """
+    Retrieves the Q-values for a given state from the Q-table.
+    If the state is not in the Q-table, initializes it with random values.
+
+    Parameters:
+    -----------
+    state : numpy.ndarray
+        The current state of the game represented as a 2D array.
+
+    Returns:
+    --------
+    numpy.ndarray
+        The Q-values for the given state.
+    """
     key = state_to_key(state)
     # print(key)
     if key not in q_table:
@@ -233,9 +410,10 @@ if __name__ == "__main__":
             show = False
 
         episode_reward = 0
+        # TURN_PENALTY = 1.5
+        last_action = False  # False if miss, True if hit
         for i in range(1000):
-            if i > 16:
-                TURN_PENALTY = 1
+            # Choose an action: it can be random or the one with the highest Q-value
             if np.random.random() > epsilon:
                 q_values = get_q_values(player.player_grid)
                 action = np.argmax(q_values)
@@ -245,14 +423,17 @@ if __name__ == "__main__":
                 y = np.random.randint(0, SIZE)
 
             current_q = get_q_values(player.player_grid)[x, y]
-            reward = player.action(x, y) - TURN_PENALTY
+            reward, hit = player.action(x, y, last_action)
+            reward -= TURN_PENALTY
+            last_action = hit
             # print(reward)
 
             max_future_q = np.max(get_q_values(player.player_grid))
 
+            # Update the Q-value for the current state and action
             if reward == WIN_REWARD - TURN_PENALTY:
                 print(f"WIN on episode {episode}")
-                new_q = WIN_REWARD - TURN_PENALTY
+                new_q = WIN_REWARD - TURN_PENALTY + (ZEROCELLS_REWARD * np.count_nonzero(player.player_grid == 0))
             else:
                 new_q = (1 - LEARNING_RATE) * current_q + LEARNING_RATE * (reward + DISCOUNT * max_future_q)
             q_table[state_to_key(player.player_grid)][x, y] = new_q
@@ -269,6 +450,7 @@ if __name__ == "__main__":
             episode_reward += reward
             if reward == WIN_REWARD - TURN_PENALTY:
                 print("WIN")
+                # TURN_PENALTY = 0
                 break
 
         episode_rewards.append(episode_reward)

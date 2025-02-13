@@ -11,11 +11,40 @@ import sys
 from space import BlockingTupleSpace
 from environment import Ship, SIZE, SHIP_N, SEA_N, UNKNOWN_N, d
 
-q_table_name = 'qtables/qtable-1739121441.pickle'
+q_table_name = 'qtables/qtable-1739446745.pickle'
 epsilon = 0.1
 
 
 class BattleshipAgent:
+    """
+    A class to represent an agent in the Battleship game.
+
+    Attributes:
+    -----------
+    id : str
+        The name of the agent.
+    ts : BlockingTupleSpace
+        The tuple space for communication between agents.
+    turn : bool
+        A flag indicating if it's the agent's turn.
+    counter : int
+        A counter for the number of steps taken.
+    q_table : dict
+        The Q-table for storing Q-values.
+    grid_size : int
+        The size of the game grid.
+    ships : list
+        A list of Ship objects representing the ships in the game.
+    sunken_ships : list
+        A list to keep track of the indices of sunken ships.
+    done : bool
+        A flag indicating if the game is over.
+    player_grid : numpy.ndarray
+        A 2D array representing the player's grid with ship positions.
+    opponent_grid : numpy.ndarray
+        A 2D array representing the opponent's grid with hits and misses.
+    """
+
     def __init__(self, tuple_space: BlockingTupleSpace, turn: bool, name):
         print("Agent created")
         self.id = name
@@ -27,14 +56,14 @@ class BattleshipAgent:
 
         self.grid_size = SIZE
         self.ships = [Ship(3), Ship(2)]
-        self.sunken_ships = 0
+        self.sunken_ships = []
         self.done = False
 
-        self.player_grid = np.full((self.grid_size, self.grid_size), -1)
+        self.player_grid = np.full((self.grid_size, self.grid_size), -1)  # It fills the grid with -1 because it's sea
         self.build_ships()
         print("Ships placed")
         print(self.player_grid)
-        self.opponent_grid = np.zeros((self.grid_size, self.grid_size))
+        self.opponent_grid = np.zeros((self.grid_size, self.grid_size))  # It fills the grid with 0 because it's unknown
 
     def get_state(self):
         return self.opponent_grid
@@ -45,6 +74,9 @@ class BattleshipAgent:
         return q_table
 
     def build_ships(self):
+        """
+        Randomly places ships on the player's grid.
+        """
         for ship in self.ships:
             while True:
                 x, y = np.random.randint(0, SIZE, 2)
@@ -60,6 +92,25 @@ class BattleshipAgent:
                     break
 
     def check_ship(self, x, y, ship, orientation):
+        """
+        Checks if a ship can be placed at the given coordinates with the given orientation.
+
+        Parameters:
+        -----------
+        x : int
+            The x-coordinate of the starting position.
+        y : int
+            The y-coordinate of the starting position.
+        ship : Ship
+            The ship object to be placed.
+        orientation : str
+            The orientation of the ship, either 'horizontal' or 'vertical'.
+
+        Returns:
+        --------
+        bool
+            True if the ship can be placed, False otherwise.
+        """
         # print(f"Checking ship {ship.size} at {x}, {y} with orientation {orientation}")
         if orientation == "vertical":
             if x + ship.size > SIZE:
@@ -114,7 +165,11 @@ class BattleshipAgent:
         return True
 
     def step(self):
+        """
+        Performs a step in the game, either making a move or responding to a request.
+        """
         print("Step")
+        # If it's the agent's turn, make a move
         if self.turn:
             x, y = self.choose_action()
             value = int(self.ask(x, y))
@@ -126,31 +181,39 @@ class BattleshipAgent:
                 print("Hit")
                 self.update_opponent_grid(x, y, 'hit')
             elif value != 0:
-                print("Already hit or missed")
+                print("Already hit or missed!!!")
             else:
                 print("Error")
 
+            # Check if the game is over
             if self.check_game_over():
                 self.done = True
                 print(f"Game over, {self.id} won. {self.counter}")
                 print(self.opponent_grid)
 
+            # Change turn
             self.change_turn()
         else:
             # Wait for the request
             request = self.ts.remove(("Request", self.counter, None, None))
             x, y = request[2], request[3]
+
             # Respond to the request
             value = self.player_grid[x, y]
             self.ts.add(("Response", self.counter, x, y, value))
             ship = self.ships[value - 1]
-            if value > 0:   # A ship was hit
-                if ship.hit(x, y, True):
-                    self.sunken_ships += 1
-                    print(f"Agent {self.id}: Affondata nave {ship.x1} {ship.y1} {ship.x2} {ship.y2} {ship.orientation}")
+
+            if value > 0:  # If a ship was hit
+                if ship.hit(x, y, True):  # Check if the ship was sunk
+                    if self.ships.index(ship) not in self.sunken_ships:
+                        self.sunken_ships.append(self.ships.index(ship))
+                        print(
+                            f"Agent {self.id}: Affondata nave {ship.x1} {ship.y1} {ship.x2} {ship.y2} {ship.orientation}")
+                        print(self.sunken_ships)
                 print(f"Agent {self.id}: [{ship.hits}]")
+
                 # Check if the game is over and publish the result
-                if self.sunken_ships == len(self.ships):
+                if len(self.sunken_ships) == len(self.ships):
                     self.ts.add(("Game over", self.counter, True))
                     self.done = True
                     print(f"Game over, {self.id} lost. {self.counter}")
@@ -159,6 +222,7 @@ class BattleshipAgent:
                     self.ts.add(("Game over", self.counter, False))
             else:
                 self.ts.add(("Game over", self.counter, False))
+
             # Change turn
             self.change_turn()
 
@@ -166,6 +230,20 @@ class BattleshipAgent:
         return tuple(state.flatten())
 
     def get_q_values(self, state):
+        """
+        Retrieves the Q-values for a given state from the Q-table.
+        If the state is not in the Q-table, initializes it with random values.
+
+        Parameters:
+        -----------
+        state : numpy.ndarray
+            The current state of the game represented as a 2D array.
+
+        Returns:
+        --------
+        numpy.ndarray
+            The Q-values for the given state.
+        """
         key = self.state_to_key(state)
         # print(key)
         if key not in self.q_table:
@@ -173,20 +251,39 @@ class BattleshipAgent:
         return self.q_table[key]
 
     def choose_action(self):
+        """
+        Chooses an action based on the current state and Q-values.
+        It follows an epsilon-greedy policy with a probability of epsilon to choose a random action.
+
+        Returns:
+        --------
+        tuple
+            The coordinates (x, y) of the chosen action.
+        """
         if np.random.random() > epsilon:
             q_values = self.get_q_values(self.get_state())
             x, y = np.unravel_index(np.argmax(q_values, axis=None), q_values.shape)
-            if self.opponent_grid[x, y] != 0:
-                print("Already hit or missed")
-                x = np.random.randint(0, SIZE)
-                y = np.random.randint(0, SIZE)
+
+            # Uncomment this to hardcode the prohibition of the same move
+            # if self.opponent_grid[x, y] != 0:
+            #     print("Already hit or missed")
+            #     while self.opponent_grid[x, y] != 0:
+            #         x = np.random.randint(0, SIZE)
+            #         y = np.random.randint(0, SIZE)
         else:
             print("Random")
             x = np.random.randint(0, SIZE)
             y = np.random.randint(0, SIZE)
+            if self.opponent_grid[x, y] != 0:
+                while self.opponent_grid[x, y] != 0:
+                    x = np.random.randint(0, SIZE)
+                    y = np.random.randint(0, SIZE)
         return x, y
 
     def ask(self, x, y):
+        """
+        Sends a request to the opponent and returns the response.
+        """
         self.ts.add(("Request", self.counter, x, y))
         result = self.ts.remove(("Response", self.counter, x, y, None))
         return result[4]
@@ -202,8 +299,10 @@ class BattleshipAgent:
         return response[2]
 
     def change_turn(self):
-        # self.update_grids(self.player_grid, "Player")
-        # self.update_grids(self.opponent_grid, "Opponent")
+        """
+        Changes the turn to the other player.
+        It is used to synchronize the agents.
+        """
         self.counter += 1
         if self.turn:
             self.ts.add(("Turn", self.counter))
@@ -214,24 +313,18 @@ class BattleshipAgent:
             self.turn = True
 
     def loop(self, delay=2):
+        """
+        Runs the game loop until the game is over.
+
+        Parameters:
+        -----------
+        delay : int, optional
+            The delay between steps in seconds (default is 2).
+        """
         print("Loop")
         while not self.done:
             self.step()
             time.sleep(delay)
-
-    def update_grids(self, grid, text):
-        env = np.zeros((SIZE, SIZE, 3), dtype=np.uint8)
-        for j in range(SIZE):
-            for k in range(SIZE):
-                if grid[j, k] == 0:  # unknown
-                    env[j, k] = d[UNKNOWN_N]
-                elif grid[j, k] == -1:  # sea
-                    env[j, k] = d[SEA_N]
-                else:  # ship
-                    env[j, k] = d[SHIP_N]
-        img = Image.fromarray(env, "RGB")
-        img = img.resize((300, 300), Image.NEAREST)
-        cv2.imshow(self.id + " " + text, np.array(img))
 
 
 def plot_grids(n_turn, agent1, agent2):
@@ -263,8 +356,12 @@ def plot_grids(n_turn, agent1, agent2):
 
 if __name__ == "__main__":
     np.printoptions(threshold=sys.maxsize)
-    n_turn = 1
+    n_turn = 0
+
+    # Create the tuple space
     ts = BlockingTupleSpace()
+
+    # Create the agents
     agent1 = BattleshipAgent(ts, True, "Player 1")
     agent2 = BattleshipAgent(ts, False, "Player 2")
 
@@ -277,11 +374,14 @@ if __name__ == "__main__":
         agent2.loop()
 
 
+    # Start the game
     threading.Thread(target=player1, daemon=True).start()
     threading.Thread(target=player2, daemon=True).start()
 
+    # Plot the initial grids
     plot_grids(n_turn, agent1, agent2)
 
+    # Until game is over, wait for the turn to change and plot the grids each turn
     while not agent1.done and not agent2.done:
         ts.remove(("Update_grids", None))
         print("ECCOMI")
