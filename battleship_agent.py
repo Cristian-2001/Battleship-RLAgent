@@ -11,7 +11,7 @@ import sys
 from space import BlockingTupleSpace
 from environment import Ship, SIZE, SHIP_N, SEA_N, UNKNOWN_N, d
 
-q_table_name = 'qtables/qtable-1739446745.pickle'
+q_table_name = 'qtables/qtable-1739532673.pickle'
 epsilon = 0.1
 
 
@@ -131,6 +131,12 @@ class BattleshipAgent:
                     return False
                 if i == ship.size - 1 and x + i < SIZE - 1 and self.player_grid[x + i + 1, y] != -1:
                     return False
+
+            # Check if it doesn't touch other ships diagonally
+            if not self._checkdiag(x, y):
+                return False
+            if not self._checkdiag(x + ship.size - 1, y):
+                return False
         elif orientation == "horizontal":
             if y + ship.size > SIZE:
                 return False
@@ -150,6 +156,23 @@ class BattleshipAgent:
                     return False
                 if i == ship.size - 1 and y + i < SIZE - 1 and self.player_grid[x, y + i + 1] != -1:
                     return False
+
+            # Check if it doesn't touch other ships diagonally
+            if not self._checkdiag(x, y):
+                return False
+            if not self._checkdiag(x, y + ship.size - 1):
+                return False
+        return True
+
+    def _checkdiag(self, x, y):
+        if x > 0 and y > 0 and self.player_grid[x - 1, y - 1] != -1:
+            return False
+        if x < SIZE - 1 and y > 0 and self.player_grid[x + 1, y - 1] != -1:
+            return False
+        if x > 0 and y < SIZE - 1 and self.player_grid[x - 1, y + 1] != -1:
+            return False
+        if x < SIZE - 1 and y < SIZE - 1 and self.player_grid[x + 1, y + 1] != -1:
+            return False
         return True
 
     def place_ship(self, x, y, ship, orientation):

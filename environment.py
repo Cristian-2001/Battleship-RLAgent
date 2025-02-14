@@ -26,28 +26,39 @@ LEARNING_RATE = 0.1  # learning rate
 DISCOUNT = 0.9  # discount rate
 
 # start_q_table = 'qtable-1738664528.pickle'    # None or Filename (qtable-1738664833.pickle)
+
 # start_q_table = 'qtable-1738665202.pickle'    # TURN_PENALTY = 0.5 *i
 # start_q_table = 'qtable-1738665606.pickle'    # TURN_PENALTY = 0.5, 1 after 16 turns
+
 # start_q_table = 'qtable-1738925166.pickle'    # Higher penalties
 # start_q_table = 'qtable-1738925776.pickle'    # New check_ship
 # start_q_table = 'qtable-1739108506.pickle'    # Higher ALREADY_HIT_PENALTY, different miss representation
 # start_q_table = 'qtable-1739118229.pickle'    # Higher ALREADY_HIT_PENALTY, new Ship.hit() method
 # start_q_table = 'qtable-1739120706.pickle'    # Higher ALREADY_HIT_PENALTY
+
 # start_q_table = 'qtable-1739121441.pickle'    # More rounds
 # start_q_table = 'qtable-1739129671.pickle'    # 1000 rounds, no TURN_PENALTY when win
 # start_q_table = 'qtable-1739207286.pickle'    # More epochs (40k vs 25k), higher ALREADY_HIT_PENALTY, introduced SUNK_REWARD
 # start_q_table = 'qtable-1739374459.pickle'    # Last try
+
 # start_q_table = 'qtable-1739390516.pickle'    # Higher TURN_PENALTY, WIN_REWARD and MISS_PENALTY
 # start_q_table = 'qtable-1739390906.pickle'    # Higher TURN_PENALTY, WIN_REWARD and MISS_PENALTY
 # start_q_table = 'qtable-1739436541.pickle'    # Introduced ZEROCELLS_REWARD
 # start_q_table = 'qtable-1739438178.pickle'    # Introduced CONSECUTIVEHIT_REWARD
 # start_q_table = 'qtable-1739444524.pickle'    # Introduced CONSECUTIVEMISS_PENALTY
 # start_q_table = 'qtable-1739444650.pickle'    # Retrained on the previous qtable
+
 # start_q_table = 'qtable-1739445130.pickle'    # Higher CONSECUTIVEMISS_PENALTY (20 vs 15)
 # start_q_table = 'qtable-1739445255.pickle'    # Retrained on the previous qtable
 # start_q_table = 'qtable-1739445374.pickle'    # Retrained on the previous qtable
 # start_q_table = 'qtable-1739446745.pickle'    # Retrained on the previous qtable
-start_q_table = None
+
+# start_q_table = 'qtable-1739529293.pickle'    # 7x7 grid
+
+# start_q_table = 'qtable-1739532004.pickle'    # Back to 4x4 grid, no diagonals contact
+# start_q_table = 'qtable-1739532145.pickle'    # Retrained on the previous qtable
+# start_q_table = 'qtable-1739532673.pickle'    # Retrained on the previous qtable
+# start_q_table = None
 
 SHIP_N = 1
 SEA_N = 2
@@ -238,6 +249,12 @@ class Battleship:
                     return False
                 if i == ship.size - 1 and x + i < SIZE - 1 and self.opponent_grid[x + i + 1, y] != -1:
                     return False
+
+                # Check if it doesn't touch other ships diagonally
+                if not self._checkdiag(x, y):
+                    return False
+                if not self._checkdiag(x + ship.size - 1, y):
+                    return False
         elif orientation == "horizontal":
             if y + ship.size > SIZE:
                 return False
@@ -257,6 +274,23 @@ class Battleship:
                     return False
                 if i == ship.size - 1 and y + i < SIZE - 1 and self.opponent_grid[x, y + i + 1] != -1:
                     return False
+
+            # Check if it doesn't touch other ships diagonally
+            if not self._checkdiag(x, y):
+                return False
+            if not self._checkdiag(x, y + ship.size - 1):
+                return False
+        return True
+
+    def _checkdiag(self, x, y):
+        if x > 0 and y > 0 and self.opponent_grid[x - 1, y - 1] != -1:
+            return False
+        if x < SIZE - 1 and y > 0 and self.opponent_grid[x + 1, y - 1] != -1:
+            return False
+        if x > 0 and y < SIZE - 1 and self.opponent_grid[x - 1, y + 1] != -1:
+            return False
+        if x < SIZE - 1 and y < SIZE - 1 and self.opponent_grid[x + 1, y + 1] != -1:
+            return False
         return True
 
     def place_ship(self, x, y, ship, orientation):
@@ -390,6 +424,8 @@ def show_img(grid):
 
 
 if __name__ == "__main__":
+    start_time = time.time()
+
     if start_q_table is None:
         q_table = {}
     else:
@@ -465,3 +501,6 @@ if __name__ == "__main__":
 
     with open(f"qtable-{int(time.time())}.pickle", "wb") as f:
         pickle.dump(q_table, f)
+
+    end_time = time.time()
+    print(f"Execution time: {end_time - start_time} seconds")
