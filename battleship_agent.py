@@ -11,7 +11,7 @@ import sys
 from space import BlockingTupleSpace
 from environment import Ship, SIZE, SHIP_N, SEA_N, UNKNOWN_N, d
 
-q_table_name = 'qtables/qtable-1739532673.pickle'
+q_table_name = 'qtables/qtable-1739615698.pickle'
 epsilon = 0.1
 
 

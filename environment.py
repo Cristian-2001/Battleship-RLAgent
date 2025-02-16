@@ -11,7 +11,7 @@ import time
 SIZE = 4  # grid dimension
 HM_EPISODES = 40000  # number of episodes
 TURN_PENALTY = 50  # penalty for each turn
-HIT_REWARD = 100  # reward for a hit
+HIT_REWARD = 150  # reward for a hit
 CONSECUTIVEHIT_REWARD = 50  # reward for consecutive hits
 CONSECUTIVEMISS_PENALTY = 20  # penalty for misses after a hit
 SUNK_REWARD = 30  # reward for sinking a ship
@@ -38,7 +38,7 @@ DISCOUNT = 0.9  # discount rate
 
 # start_q_table = 'qtable-1739121441.pickle'    # More rounds
 # start_q_table = 'qtable-1739129671.pickle'    # 1000 rounds, no TURN_PENALTY when win
-# start_q_table = 'qtable-1739207286.pickle'    # More epochs (40k vs 25k), higher ALREADY_HIT_PENALTY, introduced SUNK_REWARD
+# start_q_table = 'qtable-1739207286.pickle'    # More episodes (40k vs 25k), higher ALREADY_HIT_PENALTY, introduced SUNK_REWARD
 # start_q_table = 'qtable-1739374459.pickle'    # Last try
 
 # start_q_table = 'qtable-1739390516.pickle'    # Higher TURN_PENALTY, WIN_REWARD and MISS_PENALTY
@@ -58,7 +58,11 @@ DISCOUNT = 0.9  # discount rate
 # start_q_table = 'qtable-1739532004.pickle'    # Back to 4x4 grid, no diagonals contact
 # start_q_table = 'qtable-1739532145.pickle'    # Retrained on the previous qtable
 # start_q_table = 'qtable-1739532673.pickle'    # Retrained on the previous qtable
-# start_q_table = None
+
+# start_q_table = 'qtable-1739615427.pickle'    # Higher HIT_REWARD (150 vs 100)
+# start_q_table = 'qtable-1739615575.pickle'    # Retrained on the previous qtable
+# start_q_table = 'qtable-1739615698.pickle'    # Retrained on the previous qtable
+start_q_table = None
 
 SHIP_N = 1
 SEA_N = 2
@@ -79,7 +83,7 @@ class Ship:
         The size of the ship.
     hits : list
         A list to keep track of the coordinates where the ship has been hit.
-    x1, x2, y1, y2 : int
+    x1, y1, x2, y2 : int
         The coordinates of the ship's position on the grid.
     orientation : str
         The orientation of the ship, either 'horizontal' or 'vertical'.
@@ -96,7 +100,7 @@ class Ship:
         """
         self.size = size
         self.hits = []
-        self.x1 = self.x2 = self.y1 = self.y2 = 0
+        self.x1 = self.y1 = self.x2 = self.y2 = 0
         self.orientation = None
 
     def place(self, x1, y1, orientation):
