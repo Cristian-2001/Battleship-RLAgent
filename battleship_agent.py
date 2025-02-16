@@ -11,7 +11,7 @@ import sys
 from space import BlockingTupleSpace
 from environment import Ship, SIZE, SHIP_N, SEA_N, UNKNOWN_N, d
 
-q_table_name = 'qtables/qtable-1739532673.pickle'
+q_table_name = 'qtables/qtable-1739615698.pickle'
 epsilon = 0.1
 
 
@@ -288,11 +288,11 @@ class BattleshipAgent:
             x, y = np.unravel_index(np.argmax(q_values, axis=None), q_values.shape)
 
             # Uncomment this to hardcode the prohibition of the same move
-            # if self.opponent_grid[x, y] != 0:
-            #     print("Already hit or missed")
-            #     while self.opponent_grid[x, y] != 0:
-            #         x = np.random.randint(0, SIZE)
-            #         y = np.random.randint(0, SIZE)
+            if self.opponent_grid[x, y] != 0:
+                print("Already hit or missed")
+                while self.opponent_grid[x, y] != 0:
+                    x = np.random.randint(0, SIZE)
+                    y = np.random.randint(0, SIZE)
         else:
             print("Random")
             x = np.random.randint(0, SIZE)
