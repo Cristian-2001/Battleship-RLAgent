@@ -43,14 +43,17 @@ class BattleshipAgent:
         A 2D array representing the player's grid with ship positions.
     opponent_grid : numpy.ndarray
         A 2D array representing the opponent's grid with hits and misses.
+    human : bool
+        A flag indicating if the player is a human or not (default is false)
     """
 
-    def __init__(self, tuple_space: BlockingTupleSpace, turn: bool, name):
+    def __init__(self, tuple_space: BlockingTupleSpace, turn: bool, name, human=False):
         print("Agent created")
         self.id = name
         self.ts = tuple_space
         self.turn = turn
         self.counter = 0
+        self.human = human
 
         self.q_table = self.load_q_table(q_table_name)
 
@@ -283,6 +286,10 @@ class BattleshipAgent:
         tuple
             The coordinates (x, y) of the chosen action.
         """
+        if self.human:
+            x = int(input("Inserisci coordinata x: "))
+            y = int(input("Inserisci coordinata y: "))
+            return x, y
         if np.random.random() > epsilon:
             q_values = self.get_q_values(self.get_state())
             x, y = np.unravel_index(np.argmax(q_values, axis=None), q_values.shape)
@@ -359,12 +366,28 @@ def plot_grids(n_turn, agent1, agent2):
     boundaries = [-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5]
     norm = BoundaryNorm(boundaries, custom_cmap.N)
 
-    config_plot = [
-        (agent1.player_grid, 'Player 1 self grid', axs[0, 0]),
-        (agent1.opponent_grid, 'Player 1 opponent grid', axs[1, 0]),
-        (agent2.player_grid, 'Player 2 self grid', axs[0, 1]),
-        (agent2.opponent_grid, 'Player 2 opponent grid', axs[1, 1]),
-    ]
+    # If an agent is human, do not show its opponent grid
+    if agent1.human:
+        config_plot = [
+            (agent1.player_grid, 'Player 1 self grid', axs[0, 0]),
+            (agent1.opponent_grid, 'Player 1 opponent grid', axs[1, 0]),
+            (np.zeros((SIZE, SIZE)), 'Player 2 self grid', axs[0, 1]),
+            (agent2.opponent_grid, 'Player 2 opponent grid', axs[1, 1]),
+        ]
+    elif agent2.human:
+        config_plot = [
+            (np.zeros((SIZE, SIZE)), 'Player 1 self grid', axs[0, 0]),
+            (agent1.opponent_grid, 'Player 1 opponent grid', axs[1, 0]),
+            (agent2.player_grid, 'Player 2 self grid', axs[0, 1]),
+            (agent2.opponent_grid, 'Player 2 opponent grid', axs[1, 1]),
+        ]
+    else:
+        config_plot = [
+            (agent1.player_grid, 'Player 1 self grid', axs[0, 0]),
+            (agent1.opponent_grid, 'Player 1 opponent grid', axs[1, 0]),
+            (agent2.player_grid, 'Player 2 self grid', axs[0, 1]),
+            (agent2.opponent_grid, 'Player 2 opponent grid', axs[1, 1]),
+        ]
 
     # Plot matrices
     for matrix, title, ax in config_plot:
