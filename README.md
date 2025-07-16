@@ -50,4 +50,4 @@ Agents communicate through tuple space messages:
 
 ---
 
-*Developed by Casali Cristian*
+*Developed by Casali Cristian for the course of Distributed Artificial Intelligence, feb 2025*
